@@ -55,9 +55,6 @@ public class CollapsingLayout extends ViewGroup {
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
         switch (ev.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                mLastY = ev.getRawY();
-                break;
             case MotionEvent.ACTION_MOVE:
                 float curY = ev.getRawY();
                 float dy = curY - mLastY;
@@ -75,7 +72,7 @@ public class CollapsingLayout extends ViewGroup {
                     mScrollableView.setTranslationY(0);
                     mCollapsingView.setTranslationY(0);
                 }
-                break;
+                return true;
             case MotionEvent.ACTION_UP:
                 if (-mScrollableView.getTranslationY() > mOriginalHeight / 2) {
                     smoothTranslateY(mScrollableView, -mOriginalHeight);
@@ -86,7 +83,7 @@ public class CollapsingLayout extends ViewGroup {
                 }
                 break;
         }
-        return true;
+        return super.onTouchEvent(ev);
     }
 
     @Override
@@ -103,7 +100,7 @@ public class CollapsingLayout extends ViewGroup {
                 float curY = ev.getRawY();
                 float dy = curY - mLastY;
                 mLastY = curY;
-
+                if (Math.abs(dy) == 0) return super.onInterceptTouchEvent(ev);//滑动太敏感
                 if (Math.abs(dx) > Math.abs(dy)) {
                     //考虑到viewpager的横向滑动
                     return super.onInterceptTouchEvent(ev);
