@@ -1,11 +1,14 @@
 package com.fan.collapsinglayout;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.InflateException;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 
 /**
@@ -47,9 +50,10 @@ public class CollapsingLayout extends ViewGroup {
     }
 
     private float mLastY;
+    private float mLastX;
 
     @Override
-    public boolean dispatchTouchEvent(MotionEvent ev) {
+    public boolean onTouchEvent(MotionEvent ev) {
         switch (ev.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 mLastY = ev.getRawY();
@@ -58,29 +62,82 @@ public class CollapsingLayout extends ViewGroup {
                 float curY = ev.getRawY();
                 float dy = curY - mLastY;
                 mLastY = curY;
-                if (dy > 0) {
-                    if (mScrollCallback.canChildScroll(-1)) {
-                        return super.dispatchTouchEvent(ev);
-                    }
-                }
                 float collapsingViewCurTranslateY = mCollapsingView.getTranslationY();
                 float scrollableViewCurTranslateY = mScrollableView.getTranslationY();
                 mCollapsingView.setTranslationY(collapsingViewCurTranslateY + dy / 2);
                 mScrollableView.setTranslationY(scrollableViewCurTranslateY + dy);
-                if (-mScrollableView.getTranslationY() >= mOriginalHeight || -mCollapsingView.getTranslationY() >= mOriginalHeight/2) {
+                if (-mScrollableView.getTranslationY() > mOriginalHeight || -mCollapsingView.getTranslationY() > mOriginalHeight / 2) {
                     mScrollableView.setTranslationY(-mOriginalHeight);
-                    mCollapsingView.setTranslationY(-mOriginalHeight/2);
+                    mCollapsingView.setTranslationY(-mOriginalHeight / 2);
                 }
 
                 if (mScrollableView.getTranslationY() > 0 || mScrollableView.getTranslationY() > 0) {
                     mScrollableView.setTranslationY(0);
                     mCollapsingView.setTranslationY(0);
-                    return super.dispatchTouchEvent(ev);
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+                if (-mScrollableView.getTranslationY() > mOriginalHeight / 2) {
+                    smoothTranslateY(mScrollableView, -mOriginalHeight);
+                    smoothTranslateY(mCollapsingView, -mOriginalHeight / 2);
+                } else {
+                    smoothTranslateY(mScrollableView, 0);
+                    smoothTranslateY(mCollapsingView, 0);
                 }
                 break;
         }
+        return true;
+    }
 
-        return super.dispatchTouchEvent(ev);
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        switch (ev.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                mLastY = ev.getRawY();
+                mLastX = ev.getX();
+                break;
+            case MotionEvent.ACTION_MOVE:
+                float curX = ev.getRawX();
+                float dx = curX - mLastX;
+                mLastX = curX;
+                float curY = ev.getRawY();
+                float dy = curY - mLastY;
+                mLastY = curY;
+
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    //考虑到viewpager的横向滑动
+                    return super.onInterceptTouchEvent(ev);
+                }
+                if (dy > 0) {
+                    if (mScrollCallback.canChildScroll(-1)) {
+                        return super.onInterceptTouchEvent(ev);
+                    }
+                    if (-mScrollableView.getTranslationY() == mOriginalHeight || -mCollapsingView.getTranslationY() == mOriginalHeight / 2) {
+                        return true;
+                    }
+                } else {
+                    if (mScrollableView.getTranslationY() == 0 || mCollapsingView.getTranslationY() == 0) {
+                        return true;
+                    }
+                }
+                break;
+        }
+        return super.onInterceptTouchEvent(ev);
+    }
+
+    private void smoothTranslateY(final View target, float to) {
+        ValueAnimator animator = ValueAnimator.ofFloat(target.getTranslationY(), to);
+        animator.setDuration(300);
+        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                float cur = (float) animation.getAnimatedValue();
+                target.setTranslationY(cur);
+                if (animation.getAnimatedFraction() == 1) {
+                }
+            }
+        });
+        animator.start();
     }
 
     @Override
